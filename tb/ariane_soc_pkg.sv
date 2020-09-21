@@ -17,7 +17,7 @@ package ariane_soc;
   localparam int unsigned NumSources = 30;
   localparam int unsigned MaxPriority = 7;
 
-  localparam NrSlaves = 2; // actually masters, but slaves on the crossbar
+  localparam NrSlaves = 3; // actually masters, but slaves on the crossbar
 
   // 4 is recommended by AXI standard, so lets stick to it, do not change
   localparam IdWidth   = 4;
@@ -37,6 +37,7 @@ package ariane_soc;
   } axi_slaves_t;
 
   localparam NB_PERIPHERALS = Debug + 1;
+  // localparam NB_PERIPHERALS = Debug + 2;
 
 
   localparam logic[63:0] DebugLength    = 64'h1000;
@@ -50,6 +51,8 @@ package ariane_soc;
   localparam logic[63:0] GPIOLength     = 64'h1000;
   localparam logic[63:0] DRAMLength     = 64'h40000000; // 1GByte of DDR (split between two chips on Genesys2)
   localparam logic[63:0] SRAMLength     = 64'h1800000;  // 24 MByte of SRAM
+  localparam logic[63:0] DMALength      = 64'h4000000;  // 64 MiB of directly accessible DRAM
+
   // Instantiate AXI protocol checkers
   localparam bit GenProtocolChecker = 1'b0;
 
@@ -79,11 +82,11 @@ package ariane_soc;
     NonIdempotentLength:   {DRAMBase},
     NrExecuteRegionRules:  3,
     ExecuteRegionAddrBase: {DRAMBase,   ROMBase,   DebugBase},
-    ExecuteRegionLength:   {DRAMLength, ROMLength, DebugLength},
+    ExecuteRegionLength:   {DRAMLength - DMALength, ROMLength, DebugLength},
     // cached region
     NrCachedRegionRules:    1,
     CachedRegionAddrBase:  {DRAMBase},
-    CachedRegionLength:    {DRAMLength},
+    CachedRegionLength:    {DRAMLength - DMALength},
     //  cache config
     Axi64BitCompliant:      1'b1,
     SwapEndianess:          1'b0,

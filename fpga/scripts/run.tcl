@@ -32,6 +32,7 @@ read_ip xilinx/xlnx_axi_dwidth_converter/ip/xlnx_axi_dwidth_converter.xci
 read_ip xilinx/xlnx_axi_gpio/ip/xlnx_axi_gpio.xci
 read_ip xilinx/xlnx_axi_quad_spi/ip/xlnx_axi_quad_spi.xci
 read_ip xilinx/xlnx_clk_gen/ip/xlnx_clk_gen.xci
+read_ip xilinx/xlnx_ila_axi/ip/xlnx_ila_axi.xci
 # read_ip xilinx/xlnx_protocol_checker/ip/xlnx_protocol_checker.xci
 
 set_property include_dirs { "src/axi_sd_bridge/include" "../src/common_cells/include" } [current_fileset]
@@ -65,7 +66,7 @@ add_files -fileset constrs_1 -norecurse constraints/$project.xdc
 
 synth_design -rtl -name rtl_1
 
-set_property STEPS.SYNTH_DESIGN.ARGS.RETIMING true [get_runs synth_1]
+# set_property STEPS.SYNTH_DESIGN.ARGS.RETIMING true [get_runs synth_1]
 
 launch_runs synth_1
 wait_on_run synth_1
@@ -95,6 +96,8 @@ open_run impl_1
 write_verilog -force -mode funcsim work-fpga/${project}_funcsim.v
 write_verilog -force -mode timesim work-fpga/${project}_timesim.v
 write_sdf     -force work-fpga/${project}_timesim.sdf
+
+write_debug_probes -force work-fpga/debug_nets.ltx
 
 # reports
 exec mkdir -p reports/

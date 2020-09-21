@@ -236,6 +236,47 @@ module ariane import ariane_pkg::*; #(
   logic                     dcache_commit_wbuffer_empty;
   logic                     dcache_commit_wbuffer_not_ni;
 
+
+  xlnx_ila_axi ila_axi_ariane (
+    .clk(clk_i),
+
+    // AR Channel
+    .probe0(axi_req_o.ar.id),
+    .probe1(axi_req_o.ar.addr),
+    .probe2(axi_req_o.ar.len), 
+    .probe3(axi_req_o.ar.size), 
+    .probe4(axi_req_o.ar.burst),
+    .probe5(axi_req_o.ar.lock),
+    .probe6(axi_req_o.ar.cache),
+    .probe7(axi_req_o.ar.prot),
+    .probe8(axi_req_o.ar.qos),
+    .probe9(axi_req_o.ar.region),
+    .probe10(axi_req_o.ar_valid),
+    .probe11(axi_resp_i.ar_ready),
+
+    // R Channel
+    .probe12(axi_resp_i.r.id),
+    .probe13(axi_resp_i.r.data),
+    .probe14(axi_resp_i.r.resp),
+    .probe15(axi_resp_i.r.last),
+    .probe16(axi_resp_i.r_valid),
+    .probe17(axi_req_o.r_ready),
+
+    // Non-AXI 1-bit
+    .probe18(rst_ni),
+    .probe19(0),
+    .probe20(0),
+    .probe21(0),
+    .probe22(0),
+
+    // Non-AXI 32-bit
+    .probe23(0),
+    .probe24(0),
+    .probe25(0),
+    .probe26(0),
+    .probe27(0)
+  );
+
   // --------------
   // Frontend
   // --------------

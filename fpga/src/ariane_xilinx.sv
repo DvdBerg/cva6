@@ -154,7 +154,7 @@ module ariane_xilinx (
 );
 // 24 MByte in 8 byte words
 localparam NumWords = (24 * 1024 * 1024) / 8;
-localparam NBSlave = 2; // debug, ariane
+localparam NBSlave = 3; // debug, ariane, test module
 localparam AxiAddrWidth = 64;
 localparam AxiDataWidth = 64;
 localparam AxiIdWidthMaster = 4;
@@ -174,6 +174,13 @@ AXI_BUS #(
     .AXI_ID_WIDTH   ( AxiIdWidthSlaves ),
     .AXI_USER_WIDTH ( AxiUserWidth     )
 ) master[ariane_soc::NB_PERIPHERALS-1:0]();
+
+// AXI_BUS #(
+//     .AXI_ADDR_WIDTH ( AxiAddrWidth     ),
+//     .AXI_DATA_WIDTH ( AxiDataWidth     ),
+//     .AXI_ID_WIDTH   ( AxiIdWidthSlaves ),
+//     .AXI_USER_WIDTH ( AxiUserWidth     )
+// ) master_dma_test();
 
 // disable test-enable
 logic test_en;
@@ -215,6 +222,11 @@ logic pll_locked;
 logic                    rom_req;
 logic [AxiAddrWidth-1:0] rom_addr;
 logic [AxiDataWidth-1:0] rom_rdata;
+
+// Test ROM
+// logic                    testrom_req;
+// logic [AxiAddrWidth-1:0] testrom_addr;
+// logic [AxiDataWidth-1:0] testrom_rdata;
 
 // Debug
 logic          debug_req_valid;
@@ -273,7 +285,8 @@ axi_node_wrap_with_slices #(
         ariane_soc::SPIBase,
         ariane_soc::EthernetBase,
         ariane_soc::GPIOBase,
-        ariane_soc::DRAMBase
+        ariane_soc::DRAMBase //,
+        // 64'h7000_0000
     }),
     .end_addr_i   ({
         ariane_soc::DebugBase    + ariane_soc::DebugLength - 1,
@@ -285,7 +298,8 @@ axi_node_wrap_with_slices #(
         ariane_soc::SPIBase      + ariane_soc::SPILength - 1,
         ariane_soc::EthernetBase + ariane_soc::EthernetLength -1,
         ariane_soc::GPIOBase     + ariane_soc::GPIOLength - 1,
-        ariane_soc::DRAMBase     + ariane_soc::DRAMLength - 1
+        ariane_soc::DRAMBase     + ariane_soc::DRAMLength - 1 //,
+        // 64'h7000_0000            + 1023
     }),
     .valid_rule_i (ariane_soc::ValidRule)
 );
@@ -438,6 +452,25 @@ ariane #(
 
 axi_master_connect i_axi_master_connect_ariane (.axi_req_i(axi_ariane_req), .axi_resp_o(axi_ariane_resp), .master(slave[0]));
 
+
+// ---------------
+// Test IP that reads a DMA address
+// ---------------
+ariane_axi::req_t    axi_test_req;
+ariane_axi::resp_t   axi_test_resp;
+
+dma_test i_test (
+    .clk_i        ( clk               ),
+    .rst_ni       ( ndmreset_n        ),
+    .leds_o       ( led               ),
+    .axi_req_o    ( axi_test_req      ),
+    .axi_resp_i   ( axi_test_resp     )
+);
+
+axi_master_connect i_axi_master_connect_test (.axi_req_i(axi_test_req), .axi_resp_o(axi_test_resp), .master(slave[2]));
+// axi_master_connect i_axi_master_connect_test (.axi_req_i(axi_test_req), .axi_resp_o(axi_test_resp), .master(master_dma_test));
+
+
 // ---------------
 // CLINT
 // ---------------
@@ -497,6 +530,35 @@ bootrom i_bootrom (
     .addr_i  ( rom_addr  ),
     .rdata_o ( rom_rdata )
 );
+
+// ---------------
+// Test ROM
+// ---------------
+// axi2mem #(
+//     .AXI_ID_WIDTH   ( AxiIdWidthSlaves ),
+//     .AXI_ADDR_WIDTH ( AxiAddrWidth     ),
+//     .AXI_DATA_WIDTH ( AxiDataWidth     ),
+//     .AXI_USER_WIDTH ( AxiUserWidth     )
+// ) i_test_rom (
+//     .clk_i  ( clk                     ),
+//     .rst_ni ( ndmreset_n              ),
+//     .slave  ( master[10] ),
+//     // .slave  ( master_dma_test ),
+//     .req_o  ( testrom_req                 ),
+//     .we_o   (                         ),
+//     .addr_o ( testrom_addr                ),
+//     .be_o   (                         ),
+//     .data_o (                         ),
+//     .data_i ( testrom_rdata           )
+// );
+
+// testrom i_testrom (
+//     .clk_i   ( clk       ),
+//     .req_i   ( testrom_req   ),
+//     .addr_i  ( testrom_addr  ),
+//     .rdata_o ( testrom_rdata )
+// );
+
 
 // ---------------
 // Peripherals
@@ -559,7 +621,7 @@ ariane_peripherals #(
       .leds_o         ( {led[3:0], unused_led[7:4]}),
       .dip_switches_i ( {sw, unused_switches}     )
     `else
-      .leds_o         ( led                       ),
+      // .leds_o         ( led                       ),
       .dip_switches_i ( sw                        )
     `endif
 );
@@ -630,6 +692,46 @@ axi_riscv_atomics_wrap #(
     .rst_ni ( ndmreset_n               ),
     .slv    ( master[ariane_soc::DRAM] ),
     .mst    ( dram                     )
+);
+
+xlnx_ila_axi ila_axi_dram (
+    .clk(clk),
+
+    // AR Channel
+    .probe0(master[ariane_soc::DRAM].ar_id),
+    .probe1(master[ariane_soc::DRAM].ar_addr),
+    .probe2(master[ariane_soc::DRAM].ar_len), 
+    .probe3(master[ariane_soc::DRAM].ar_size), 
+    .probe4(master[ariane_soc::DRAM].ar_burst),
+    .probe5(master[ariane_soc::DRAM].ar_lock),
+    .probe6(master[ariane_soc::DRAM].ar_cache),
+    .probe7(master[ariane_soc::DRAM].ar_prot),
+    .probe8(master[ariane_soc::DRAM].ar_qos),
+    .probe9(master[ariane_soc::DRAM].ar_region),
+    .probe10(master[ariane_soc::DRAM].ar_valid),
+    .probe11(master[ariane_soc::DRAM].ar_ready),
+
+    // R Channel
+    .probe12(master[ariane_soc::DRAM].r_id),
+    .probe13(master[ariane_soc::DRAM].r_data),
+    .probe14(master[ariane_soc::DRAM].r_resp),
+    .probe15(master[ariane_soc::DRAM].r_last),
+    .probe16(master[ariane_soc::DRAM].r_valid),
+    .probe17(master[ariane_soc::DRAM].r_ready),
+
+    // Non-AXI 1-bit
+    .probe18(0),
+    .probe19(0),
+    .probe20(0),
+    .probe21(0),
+    .probe22(0),
+
+    // Non-AXI 32-bit
+    .probe23(0),
+    .probe24(0),
+    .probe25(0),
+    .probe26(0),
+    .probe27(0)
 );
 
 `ifdef PROTOCOL_CHECKER

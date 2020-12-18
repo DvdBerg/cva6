@@ -15,7 +15,8 @@ module dma_test (
                     await_send = 1,
                     request_read = 2,
                     await_read = 3,
-                    process_read = 4;
+                    await_handshake = 4,
+                    process_read = 5;
     
     reg [2:0] state;
 
@@ -54,32 +55,47 @@ module dma_test (
 
                 // Wait 5 seconds before the first request
                 await_begin : begin
-                    count <= count + 1;
-
                     if(count == 28'hEE6B280) begin
                         state <= await_send;
                         count <= 0;
                     end
+                    else begin
+                        state <= await_begin;
+                        count <= count + 1;
+                    end
                 end
 
-                // Wait 100 ms between requests
+                // Wait 1 s between requests
                 await_send : begin
-                    count <= count + 1;
-
-                    if(count == 28'h4C4B40) begin
+                    if(count == 28'h2FAF080) begin
                         state <= request_read;
                         busy <= 1;
                         count <= 0;
                     end 
+                    else begin
+                        state <= await_send;
+                        busy <= 0;
+                        count <= count + 1;
+                    end
                 end
 
                 request_read : begin
                     axi_req_o.ar_valid <= 1'b1;
-                    state <= await_read;
+                    state <= await_handshake;
+                end
+
+                await_handshake : begin
+                    if(axi_resp_i.ar_ready == 1'b1) begin
+                        axi_req_o.ar_valid <= 1'b0;
+                        state <= await_read;
+                    end
+                    else begin
+                        axi_req_o.ar_valid <= 1'b1;
+                        state <= await_handshake;
+                    end
                 end
 
                 await_read : begin
-                    axi_req_o.ar_valid <= 1'b0;
                     if(axi_resp_i.r_valid == 1'b1) begin
                         state <= process_read;
                         axi_req_o.r_ready <= 1'b0;
